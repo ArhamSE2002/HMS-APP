@@ -10,7 +10,7 @@ class AuthController extends GetxController {
   var isLoading = false.obs;
   var userData = {}.obs;
 
-  static const String baseUrl = "http://192.168.1.40:3000/";
+  static const String baseUrl = "http://192.168.1.7:3000/";
 
   // ================================================================
   // CHECK AUTH
@@ -25,13 +25,11 @@ class AuthController extends GetxController {
       return;
     }
 
+    // Load profile from local storage
+    await _loadProfileFromStorage();
+
     // Token exists → go to dashboard
     Get.offAll(() => DashboardScreen());
-
-    // If profile already loaded, no need to fetch again
-    if (userData.isNotEmpty) return;
-
-    await fetchProfile(token);
   }
 
   // ================================================================
@@ -59,18 +57,23 @@ class AuthController extends GetxController {
 
       final json = jsonDecode(response.body);
       final token = json["access_token"];
+      final profile = json["profile"];
 
       // Save token
       await storage.write(key: "token", value: token);
       print("Token saved successfully: $token");
 
+      // Save profile to local storage
+      if (profile != null) {
+        await _saveProfileToStorage(profile);
+        userData.value = profile;
+        print("Profile saved: $userData");
+      }
+
       isLoading.value = false;
 
       // Navigate to dashboard
       Get.offAll(() => DashboardScreen());
-
-      // Fetch profile after login
-      await fetchProfile(token);
     } catch (e) {
       isLoading.value = false;
       print("Login Error: $e");
@@ -79,31 +82,31 @@ class AuthController extends GetxController {
   }
 
   // ================================================================
-  // FETCH USER PROFILE
+  // SAVE PROFILE TO LOCAL STORAGE
   // ================================================================
-  Future<void> fetchProfile(String token) async {
+  Future<void> _saveProfileToStorage(Map<String, dynamic> profile) async {
     try {
-      final profileUrl = Uri.parse("${baseUrl}accounts/profile");
+      await storage.write(key: "profile", value: jsonEncode(profile));
+      print("Profile saved to storage");
+    } catch (e) {
+      print("Error saving profile: $e");
+    }
+  }
 
-      final response = await http.get(
-        profileUrl,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-      );
-
-      if (response.statusCode == 200) {
-        userData.value = jsonDecode(response.body);
-        print("Profile Loaded: $userData");
-      } else if (response.statusCode == 401) {
-        print("Token Expired");
-        await logout();
+  // ================================================================
+  // LOAD PROFILE FROM LOCAL STORAGE
+  // ================================================================
+  Future<void> _loadProfileFromStorage() async {
+    try {
+      final profileStr = await storage.read(key: "profile");
+      if (profileStr != null) {
+        userData.value = jsonDecode(profileStr);
+        print("Profile loaded from storage: $userData");
       } else {
-        print("Profile Fetch Failed: ${response.statusCode}");
+        print("No profile found in storage");
       }
     } catch (e) {
-      print("Profile Error: $e");
+      print("Error loading profile: $e");
     }
   }
 
@@ -112,6 +115,7 @@ class AuthController extends GetxController {
   // ================================================================
   Future<void> logout() async {
     await storage.delete(key: "token");
+    await storage.delete(key: "profile");
     userData.clear();
     Get.offAll(() => LoginScreen());
   }

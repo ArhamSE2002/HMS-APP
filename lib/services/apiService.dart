@@ -8,7 +8,7 @@ import 'package:khaiyal_hospital_finance/controllers/authController.dart';
 class ApiService {
   final authController = Get.find<AuthController>();
   final storage = FlutterSecureStorage();
-  static const String baseUrl = 'http://192.168.1.40:3000/';
+  static const String baseUrl = 'https://192.168.1.40:3000/';
   String? token;
 
   Future<String?> getToken() async {

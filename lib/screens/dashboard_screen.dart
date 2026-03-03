@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:khaiyal_hospital_finance/controllers/authController.dart';
 import 'package:khaiyal_hospital_finance/controllers/dashboardController.dart';
-import 'package:khaiyal_hospital_finance/screens/request_screen.dart';
 import 'package:lottie/lottie.dart';
 import '../utils/app_colors.dart';
-import 'department_detail_screen.dart';
-import 'dart:math';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -52,6 +50,38 @@ class _DashboardScreenState extends State<DashboardScreen>
     "emergency": AppColors.warm,
   };
 
+  // Fallback colors for departments not in the map
+  final List<Color> _fallbackColors = [
+    Color(0xFF355070),
+    Color(0xFF6D597A),
+    Color(0xFFB56576),
+    Color(0xFFE56B6F),
+    Color(0xFFEAAC8B),
+    Color(0xFF2980B9),
+    Color(0xFF8E44AD),
+    Color(0xFF16A085),
+  ];
+
+  // Fallback icons for departments not in the map
+  final List<IconData> _fallbackIcons = [
+    Icons.local_hospital_rounded,
+    Icons.medical_services_rounded,
+    Icons.health_and_safety_rounded,
+    Icons.medication_rounded,
+    Icons.biotech_rounded,
+    Icons.monitor_heart_rounded,
+  ];
+
+  Color _getDepartmentColor(String deptKey, int index) {
+    return departmentColors[deptKey] ??
+        _fallbackColors[index % _fallbackColors.length];
+  }
+
+  IconData _getDepartmentIcon(String deptKey, int index) {
+    return departmentIcons[deptKey] ??
+        _fallbackIcons[index % _fallbackIcons.length];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -65,6 +95,31 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: dashboardController.selectedDate.value,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      await dashboardController.updateDate(picked);
+    }
   }
 
   @override
@@ -126,38 +181,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                                           letterSpacing: 0.3,
                                         ),
                                       ),
-                                      // SizedBox(width: 5),
-                                      // Icon(
-                                      //   Icons.medical_information,
-                                      //   color: Colors.blueGrey,
-                                      //   size: 14,
-                                      // ),
                                     ],
                                   ),
                                   SizedBox(height: height * 0.006),
-                                  SizedBox(
-                                    height: height * 0.035,
-                                    child: TextButton(
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                      ),
-                                      onPressed: () {
-                                        authController.logout();
-                                      },
-                                      child: Text(
-                                        authController.userData == null
-                                            ? 'Hospital Owner'
-                                            : authController
-                                                .userData["username"]
-                                                .toString(),
-                                        style: TextStyle(
-                                          fontSize: width * 0.068,
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.8,
-                                          height: 1.1,
-                                        ),
-                                      ),
+                                  Text(
+                                    authController.userData.isEmpty
+                                        ? 'Hospital Owner'
+                                        : authController.userData["admin_name"]
+                                            .toString(),
+                                    style: TextStyle(
+                                      fontSize: width * 0.068,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.8,
+                                      height: 1.1,
                                     ),
                                   ),
                                   SizedBox(height: height * 0.008),
@@ -174,76 +211,171 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ],
                               ),
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => RequestScreen(),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: EdgeInsets.all(width * 0.032),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      AppColors.warm.withOpacity(0.15),
-                                      AppColors.highlight.withOpacity(0.1),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    width * 0.035,
-                                  ),
-                                  border: Border.all(
-                                    color: AppColors.warm.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.warm.withOpacity(0.15),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
+                            // ===== Header Actions =====
+                            Column(
+                              children: [
+                                // ===== Logout Button =====
+                                GestureDetector(
+                                  onTap: () {
+                                    Get.dialog(
+                                      AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            width * 0.04,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          'Logout',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        content: Text(
+                                          'Are you sure you want to logout?',
+                                          style: TextStyle(
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Get.back(),
+                                            child: Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                color: AppColors.textSecondary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Get.back();
+                                              authController.logout();
+                                            },
+                                            child: Text(
+                                              'Logout',
+                                              style: TextStyle(
+                                                color: AppColors.error,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.all(width * 0.025),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(
+                                        width * 0.03,
+                                      ),
+                                      border: Border.all(
+                                        color: AppColors.error.withOpacity(0.2),
+                                        width: 1,
+                                      ),
                                     ),
-                                  ],
+                                    child: Icon(
+                                      Icons.logout_rounded,
+                                      color: AppColors.error,
+                                      size: width * 0.045,
+                                    ),
+                                  ),
                                 ),
-                                child: Icon(
-                                  Icons.notifications_rounded,
-                                  color: AppColors.primary,
-                                  size: width * 0.065,
+                                SizedBox(height: height * 0.01),
+                                // ===== Date Picker Button =====
+                                GestureDetector(
+                                  onTap: _pickDate,
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: width * 0.035,
+                                      vertical: width * 0.025,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          AppColors.primary.withOpacity(0.12),
+                                          AppColors.secondary.withOpacity(0.08),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        width * 0.035,
+                                      ),
+                                      border: Border.all(
+                                        color: AppColors.primary.withOpacity(
+                                          0.25,
+                                        ),
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.primary.withOpacity(
+                                            0.12,
+                                          ),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_today_rounded,
+                                          color: AppColors.primary,
+                                          size: width * 0.045,
+                                        ),
+                                        SizedBox(width: width * 0.02),
+                                        Text(
+                                          DateFormat('dd MMM').format(
+                                            dashboardController
+                                                .selectedDate
+                                                .value,
+                                          ),
+                                          style: TextStyle(
+                                            color: AppColors.primary,
+                                            fontSize: width * 0.033,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    // ===== Summary Card =====
+                    // ===== Summary Cards =====
                     _buildSummaryCard(
                       width,
                       height,
-                      "Monthly Total Profit",
-                      dashboardController
-                              .financialSummary["data"]?["monthly"]?["revenue"] ??
+                      "Monthly Revenue",
+                      dashboardController.financialSummary["monthly_revenue"] ??
                           0,
-                      [
-                        Color(0xFF27AE60), // success (green)
-                        Color(0xFF7F8C8D),
-                      ],
-                      dashboardController.monthlyPercentage.value,
-                      dashboardController.isMonthlyGreater.value,
+                      "Monthly Net Profit",
+                      dashboardController
+                              .financialSummary["monthly_net_profit"] ??
+                          0,
+                      [Color(0xFF27AE60), Color(0xFF7F8C8D)],
                     ),
                     _buildSummaryCard(
                       width,
                       height,
-                      "Daily Total Profit",
+                      "Daily Revenue",
+                      dashboardController.financialSummary["daily_revenue"] ??
+                          0,
+                      "Daily Net Profit",
                       dashboardController
-                              .financialSummary["data"]?["daily"]?["revenue"] ??
+                              .financialSummary["daily_net_profit"] ??
                           0,
                       [AppColors.primary, AppColors.secondary],
-                      dashboardController.dailyPercentage.value,
-                      dashboardController.isDailyGreater.value,
                     ),
 
                     SizedBox(height: height * 0.015),
@@ -263,6 +395,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         final dept =
                             dashboardController.filteredDepartments[idx];
                         final deptKey = dept.keys.first;
+                        final deptColor = _getDepartmentColor(deptKey, idx);
+                        final deptIcon = _getDepartmentIcon(deptKey, idx);
+
                         return TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0.0, end: 1.0),
                           duration: Duration(milliseconds: 600 + (idx * 100)),
@@ -284,16 +419,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     width * 0.05,
                                   ),
                                   border: Border.all(
-                                    color: (departmentColors['$deptKey'] ??
-                                            Colors.grey)
-                                        .withOpacity(0.15),
+                                    color: deptColor.withOpacity(0.15),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: (departmentColors['$deptKey']
-                                              as Color)
-                                          .withOpacity(0.12),
+                                      color: deptColor.withOpacity(0.12),
                                       blurRadius: 20,
                                       offset: const Offset(0, 8),
                                     ),
@@ -317,12 +448,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
                                             colors: [
-                                              (departmentColors['$deptKey']
-                                                      as Color)
-                                                  .withOpacity(0.08),
-                                              (departmentColors['$deptKey']
-                                                      as Color)
-                                                  .withOpacity(0.03),
+                                              deptColor.withOpacity(0.08),
+                                              deptColor.withOpacity(0.03),
                                             ],
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
@@ -336,11 +463,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                               decoration: BoxDecoration(
                                                 gradient: LinearGradient(
                                                   colors: [
-                                                    departmentColors['$deptKey']
-                                                        as Color,
-                                                    (departmentColors['$deptKey']
-                                                            as Color)
-                                                        .withOpacity(0.7),
+                                                    deptColor,
+                                                    deptColor.withOpacity(0.7),
                                                   ],
                                                   begin: Alignment.topLeft,
                                                   end: Alignment.bottomRight,
@@ -351,10 +475,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                     ),
                                                 boxShadow: [
                                                   BoxShadow(
-                                                    color:
-                                                        (departmentColors['$deptKey']
-                                                                as Color)
-                                                            .withOpacity(0.3),
+                                                    color: deptColor
+                                                        .withOpacity(0.3),
                                                     blurRadius: 12,
                                                     offset: const Offset(0, 4),
                                                   ),
@@ -366,8 +488,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                       width * 0.04,
                                                     ),
                                                 child: Icon(
-                                                  departmentIcons['$deptKey']
-                                                      as IconData,
+                                                  deptIcon,
                                                   color: Colors.white,
                                                   size: width * 0.09,
                                                 ),
@@ -375,15 +496,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                                             ),
                                             SizedBox(height: height * 0.012),
                                             Text(
-                                              deptKey,
+                                              _formatDeptName(deptKey),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w800,
-                                                color:
-                                                    departmentColors['$deptKey']
-                                                        as Color,
+                                                color: deptColor,
                                                 fontSize: width * 0.042,
                                                 letterSpacing: -0.3,
                                               ),
@@ -402,269 +521,55 @@ class _DashboardScreenState extends State<DashboardScreen>
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceEvenly,
                                             children: [
-                                              // Revenue Row
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    padding: EdgeInsets.all(
-                                                      width * 0.02,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          (departmentColors['$deptKey']
-                                                                  as Color)
-                                                              .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            width * 0.02,
-                                                          ),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.payments_rounded,
-                                                      color:
-                                                          departmentColors['$deptKey']
-                                                              as Color,
-                                                      size: width * 0.04,
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    width: width * 0.025,
-                                                  ),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          'Daily Revenue',
-                                                          style: TextStyle(
-                                                            fontSize:
-                                                                width * 0.03,
-                                                            color:
-                                                                AppColors
-                                                                    .textSecondary,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                            letterSpacing: 0.2,
-                                                          ),
-                                                        ),
-                                                        SizedBox(height: 2),
-                                                        Text(
-                                                          dept['$deptKey']['daily_revenue']
-                                                              .toString(),
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color:
-                                                                AppColors
-                                                                    .textPrimary,
-                                                            fontSize:
-                                                                width * 0.035,
-                                                            letterSpacing: -0.3,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
+                                              // Daily Revenue Row
+                                              _buildDeptStatRow(
+                                                width,
+                                                height,
+                                                'Daily Revenue',
+                                                dept[deptKey]['daily_revenue']
+                                                    .toString(),
+                                                Icons.payments_rounded,
+                                                deptColor,
+                                                AppColors.textPrimary,
                                               ),
                                               SizedBox(height: height * 0.02),
 
-                                              // Profit Row
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    padding: EdgeInsets.all(
-                                                      width * 0.02,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: AppColors.success
-                                                          .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            width * 0.02,
-                                                          ),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.trending_up_rounded,
-                                                      color: AppColors.success,
-                                                      size: width * 0.04,
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    width: width * 0.025,
-                                                  ),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          'Daily Profit',
-                                                          style: TextStyle(
-                                                            fontSize:
-                                                                width * 0.03,
-                                                            color:
-                                                                AppColors
-                                                                    .textSecondary,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                            letterSpacing: 0.2,
-                                                          ),
-                                                        ),
-                                                        SizedBox(height: 2),
-                                                        Text(
-                                                          dept['$deptKey']['daily_profit']
-                                                              .toString(),
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color:
-                                                                AppColors
-                                                                    .success,
-                                                            fontSize:
-                                                                width * 0.035,
-                                                            letterSpacing: -0.3,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(height: height * 0.02),
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    padding: EdgeInsets.all(
-                                                      width * 0.02,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          (departmentColors['$deptKey']
-                                                                  as Color)
-                                                              .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            width * 0.02,
-                                                          ),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.payments_rounded,
-                                                      color:
-                                                          departmentColors['$deptKey']
-                                                              as Color,
-                                                      size: width * 0.04,
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    width: width * 0.025,
-                                                  ),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          'Monthly Revenue',
-                                                          style: TextStyle(
-                                                            fontSize:
-                                                                width * 0.03,
-                                                            color:
-                                                                AppColors
-                                                                    .textSecondary,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                            letterSpacing: 0.2,
-                                                          ),
-                                                        ),
-                                                        SizedBox(height: 2),
-                                                        Text(
-                                                          dept['$deptKey']['monthly_revenue']
-                                                              .toString(),
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color:
-                                                                AppColors
-                                                                    .textPrimary,
-                                                            fontSize:
-                                                                width * 0.035,
-                                                            letterSpacing: -0.3,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
+                                              // Daily Profit Row
+                                              _buildDeptStatRow(
+                                                width,
+                                                height,
+                                                'Daily Profit',
+                                                dept[deptKey]['daily_profit']
+                                                    .toString(),
+                                                Icons.trending_up_rounded,
+                                                AppColors.success,
+                                                AppColors.success,
                                               ),
                                               SizedBox(height: height * 0.02),
 
-                                              // Profit Row
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    padding: EdgeInsets.all(
-                                                      width * 0.02,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: AppColors.success
-                                                          .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            width * 0.02,
-                                                          ),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.trending_up_rounded,
-                                                      color: AppColors.success,
-                                                      size: width * 0.04,
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    width: width * 0.025,
-                                                  ),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          'Profit',
-                                                          style: TextStyle(
-                                                            fontSize:
-                                                                width * 0.03,
-                                                            color:
-                                                                AppColors
-                                                                    .textSecondary,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                            letterSpacing: 0.2,
-                                                          ),
-                                                        ),
-                                                        SizedBox(height: 2),
-                                                        Text(
-                                                          dept['$deptKey']['monthly_profit']
-                                                              .toString(),
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color:
-                                                                AppColors
-                                                                    .success,
-                                                            fontSize:
-                                                                width * 0.035,
-                                                            letterSpacing: -0.3,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
+                                              // Monthly Revenue Row
+                                              _buildDeptStatRow(
+                                                width,
+                                                height,
+                                                'Monthly Revenue',
+                                                dept[deptKey]['monthly_revenue']
+                                                    .toString(),
+                                                Icons.payments_rounded,
+                                                deptColor,
+                                                AppColors.textPrimary,
+                                              ),
+                                              SizedBox(height: height * 0.02),
+
+                                              // Monthly Profit Row
+                                              _buildDeptStatRow(
+                                                width,
+                                                height,
+                                                'Monthly Profit',
+                                                dept[deptKey]['monthly_profit']
+                                                    .toString(),
+                                                Icons.trending_up_rounded,
+                                                AppColors.success,
+                                                AppColors.success,
                                               ),
                                             ],
                                           ),
@@ -714,17 +619,78 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  /// Formats department key to a display name (e.g., "patient_visit" -> "Patient Visit")
+  String _formatDeptName(String key) {
+    return key
+        .split('_')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+  }
+
+  /// Reusable department stat row widget
+  Widget _buildDeptStatRow(
+    double width,
+    double height,
+    String label,
+    String value,
+    IconData icon,
+    Color iconColor,
+    Color valueColor,
+  ) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(width * 0.02),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(width * 0.02),
+          ),
+          child: Icon(icon, color: iconColor, size: width * 0.04),
+        ),
+        SizedBox(width: width * 0.025),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: width * 0.03,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: valueColor,
+                  fontSize: width * 0.035,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   // ===== Summary Card (reusable) =====
   Widget _buildSummaryCard(
     double width,
     double height,
-    String title,
-    int amount,
+    String revenueTitle,
+    dynamic revenueAmount,
+    String profitTitle,
+    dynamic profitAmount,
     List<Color> gradient,
-
-    double profitPercentage,
-    bool isProfit,
   ) {
+    final revenue = (revenueAmount is num) ? revenueAmount.toDouble() : 0.0;
+    final profit = (profitAmount is num) ? profitAmount.toDouble() : 0.0;
+
     return FadeTransition(
       opacity: _animationController,
       child: Container(
@@ -749,11 +715,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Revenue section
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  title,
+                  revenueTitle,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.95),
                     fontSize: width * 0.042,
@@ -768,18 +735,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                     borderRadius: BorderRadius.circular(width * 0.025),
                   ),
                   child: Icon(
-                    isProfit
-                        ? Icons.trending_up_rounded
-                        : Icons.trending_down_rounded,
-                    color: isProfit ? Colors.white : Color(0xFFE74C3C),
+                    Icons.account_balance_wallet_rounded,
+                    color: Colors.white,
                     size: width * 0.06,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: height * 0.015),
+            SizedBox(height: height * 0.01),
             Text(
-              'Rs ${(amount / 1000).toStringAsFixed(1)}k',
+              'Rs ${_formatAmount(revenue)}',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: width * 0.09,
@@ -788,53 +753,56 @@ class _DashboardScreenState extends State<DashboardScreen>
                 height: 1,
               ),
             ),
-            SizedBox(height: height * 0.012),
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: width * 0.025,
-                    vertical: height * 0.006,
+            SizedBox(height: height * 0.018),
+            // Profit section
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: width * 0.035,
+                vertical: height * 0.01,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(width * 0.025),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.trending_up_rounded,
+                    color: Colors.white,
+                    size: width * 0.045,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(width * 0.02),
+                  SizedBox(width: width * 0.02),
+                  Text(
+                    '$profitTitle: ',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: width * 0.032,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        profitPercentage > 0
-                            ? Icons.arrow_upward_rounded
-                            : Icons.arrow_downward_rounded,
-                        color: isProfit ? Colors.white : Color(0xFFE74C3C),
-                        size: width * 0.04,
-                      ),
-                      SizedBox(width: width * 0.01),
-                      Text(
-                        profitPercentage.toString(),
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: width * 0.032,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Rs ${_formatAmount(profit)}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: width * 0.035,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                SizedBox(width: width * 0.02),
-                Text(
-                  'vs last period',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: width * 0.032,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Formats amount for display (e.g., 160000 -> "160.0k")
+  String _formatAmount(double amount) {
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}k';
+    }
+    return amount.toStringAsFixed(0);
   }
 }

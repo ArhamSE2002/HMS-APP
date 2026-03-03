@@ -5,8 +5,6 @@ import 'utils/app_colors.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/dashboard_screen.dart';
-import 'screens/request_screen.dart';
-import 'screens/history_screen.dart';
 
 void main() {
   SystemChrome.setSystemUIOverlayStyle(
@@ -40,26 +38,6 @@ class MedicalFinanceApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/dashboard': (context) => const DashboardScreen(),
-        '/requests': (context) => const RequestScreen(),
-        // History needs requests list, simple demonstration route:
-        '/history':
-            (context) => HistoryScreen(
-              allRequests: [
-                {
-                  'title': 'Surgery Discount',
-                  'description':
-                      'Patient requests 20% discount on surgery. Valid reason.',
-                  'amount': '20%',
-                  'status': 'Accepted',
-                },
-                {
-                  'title': 'Lab Fee Waiver',
-                  'description': 'Lab fees waiver for returning client.',
-                  'amount': 'Rs 500',
-                  'status': 'Rejected',
-                },
-              ],
-            ),
       },
     );
   }
