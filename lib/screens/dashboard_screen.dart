@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:khaiyal_hospital_finance/controllers/authController.dart';
 import 'package:khaiyal_hospital_finance/controllers/dashboardController.dart';
 import 'package:lottie/lottie.dart';
 import '../utils/app_colors.dart';
+import '../widgets/dashboard_summary_card.dart';
+import '../widgets/dashboard_small_stat_card.dart';
+import '../widgets/dashboard_department_card.dart';
+import '../widgets/dashboard_period_selector.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -18,6 +23,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _animationController;
   final authController = Get.find<AuthController>();
   final dashboardController = Get.put(DashboardController());
+
+  String selectedPeriod = 'today';
+  final List<Map<String, String>> periods = [
+    {'key': 'today', 'label': 'Today'},
+    {'key': 'this_week', 'label': 'This Week'},
+    {'key': 'this_month', 'label': 'This Month'},
+  ];
 
   final List<Color> colors = [
     Color(0xFF355070), // primary
@@ -290,8 +302,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   onTap: _pickDate,
                                   child: Container(
                                     padding: EdgeInsets.symmetric(
-                                      horizontal: width * 0.035,
-                                      vertical: width * 0.025,
+                                      horizontal: width * 0.025,
+                                      vertical: width * 0.015,
                                     ),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
@@ -301,7 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(
-                                        width * 0.035,
+                                        width * 0.025,
                                       ),
                                       border: Border.all(
                                         color: AppColors.primary.withOpacity(
@@ -325,9 +337,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                                         Icon(
                                           Icons.calendar_today_rounded,
                                           color: AppColors.primary,
-                                          size: width * 0.045,
+                                          size: width * 0.035,
                                         ),
-                                        SizedBox(width: width * 0.02),
+                                        SizedBox(width: width * 0.015),
                                         Text(
                                           DateFormat('dd MMM').format(
                                             dashboardController
@@ -336,7 +348,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                           ),
                                           style: TextStyle(
                                             color: AppColors.primary,
-                                            fontSize: width * 0.033,
+                                            fontSize: width * 0.028,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0.2,
                                           ),
@@ -352,457 +364,206 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
 
-                    // ===== Summary Cards =====
-                    _buildSummaryCard(
-                      width,
-                      height,
-                      "Monthly Revenue",
-                      dashboardController.financialSummary["monthly_revenue"] ??
-                          0,
-                      "Monthly Net Profit",
-                      dashboardController
-                              .financialSummary["monthly_net_profit"] ??
-                          0,
-                      [Color(0xFF27AE60), Color(0xFF7F8C8D)],
-                    ),
-                    _buildSummaryCard(
-                      width,
-                      height,
-                      "Daily Revenue",
-                      dashboardController.financialSummary["daily_revenue"] ??
-                          0,
-                      "Daily Net Profit",
-                      dashboardController
-                              .financialSummary["daily_net_profit"] ??
-                          0,
-                      [AppColors.primary, AppColors.secondary],
+                    // ===== Period Selector =====
+                    DashboardPeriodSelector(
+                      width: width,
+                      height: height,
+                      animation: _animationController,
+                      selectedPeriod: selectedPeriod,
+                      periods: periods,
+                      onPeriodSelected:
+                          (key) => setState(() => selectedPeriod = key),
                     ),
 
-                    SizedBox(height: height * 0.015),
-
-                    // ===== Departments =====
-                    GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: dashboardController.filteredDepartments.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: (width > 600) ? 3 : 2,
-                        crossAxisSpacing: width * 0.04,
-                        mainAxisSpacing: height * 0.02,
-                        childAspectRatio: 0.45,
-                      ),
-                      itemBuilder: (context, idx) {
-                        final dept =
-                            dashboardController.filteredDepartments[idx];
-                        final deptKey = dept.keys.first;
-                        final deptColor = _getDepartmentColor(deptKey, idx);
-                        final deptIcon = _getDepartmentIcon(deptKey, idx);
-
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: Duration(milliseconds: 600 + (idx * 100)),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, value, child) {
-                            return Transform.scale(
-                              scale: 0.8 + (0.2 * value),
-                              child: Opacity(opacity: value, child: child),
-                            );
-                          },
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(width * 0.05),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.cardBackground,
-                                  borderRadius: BorderRadius.circular(
-                                    width * 0.05,
-                                  ),
-                                  border: Border.all(
-                                    color: deptColor.withOpacity(0.15),
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: deptColor.withOpacity(0.12),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                    width * 0.05,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      // ===== Icon & Name =====
-                                      Container(
-                                        width: double.infinity,
-                                        padding: EdgeInsets.all(width * 0.04),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              deptColor.withOpacity(0.08),
-                                              deptColor.withOpacity(0.03),
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            Container(
-                                              width: width * 0.16,
-                                              height: width * 0.16,
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  colors: [
-                                                    deptColor,
-                                                    deptColor.withOpacity(0.7),
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      width * 0.04,
-                                                    ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: deptColor
-                                                        .withOpacity(0.3),
-                                                    blurRadius: 12,
-                                                    offset: const Offset(0, 4),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      width * 0.04,
-                                                    ),
-                                                child: Icon(
-                                                  deptIcon,
-                                                  color: Colors.white,
-                                                  size: width * 0.09,
-                                                ),
-                                              ),
-                                            ),
-                                            SizedBox(height: height * 0.012),
-                                            Text(
-                                              _formatDeptName(deptKey),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: deptColor,
-                                                fontSize: width * 0.042,
-                                                letterSpacing: -0.3,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      // ===== Stats =====
-                                      Expanded(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(
-                                            width * 0.035,
-                                          ),
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceEvenly,
-                                            children: [
-                                              // Daily Revenue Row
-                                              _buildDeptStatRow(
-                                                width,
-                                                height,
-                                                'Daily Revenue',
-                                                dept[deptKey]['daily_revenue']
-                                                    .toString(),
-                                                Icons.payments_rounded,
-                                                deptColor,
-                                                AppColors.textPrimary,
-                                              ),
-                                              SizedBox(height: height * 0.02),
-
-                                              // Daily Profit Row
-                                              _buildDeptStatRow(
-                                                width,
-                                                height,
-                                                'Daily Profit',
-                                                dept[deptKey]['daily_profit']
-                                                    .toString(),
-                                                Icons.trending_up_rounded,
-                                                AppColors.success,
-                                                AppColors.success,
-                                              ),
-                                              SizedBox(height: height * 0.02),
-
-                                              // Monthly Revenue Row
-                                              _buildDeptStatRow(
-                                                width,
-                                                height,
-                                                'Monthly Revenue',
-                                                dept[deptKey]['monthly_revenue']
-                                                    .toString(),
-                                                Icons.payments_rounded,
-                                                deptColor,
-                                                AppColors.textPrimary,
-                                              ),
-                                              SizedBox(height: height * 0.02),
-
-                                              // Monthly Profit Row
-                                              _buildDeptStatRow(
-                                                width,
-                                                height,
-                                                'Monthly Profit',
-                                                dept[deptKey]['monthly_profit']
-                                                    .toString(),
-                                                Icons.trending_up_rounded,
-                                                AppColors.success,
-                                                AppColors.success,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                    if (dashboardController.overallData.isEmpty &&
+                        !dashboardController.isLoading.value) ...[
+                      SizedBox(height: height * 0.04),
+                      Container(
+                        height: height * 0.4,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.insert_chart_outlined_rounded,
+                              size: width * 0.15,
+                              color: AppColors.textSecondary.withOpacity(0.5),
+                            ),
+                            SizedBox(height: height * 0.02),
+                            Text(
+                              "No financial data available for this date.",
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: width * 0.035,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      // ===== Summary Cards =====
+                      DashboardSummaryCard(
+                        width: width,
+                        height: height,
+                        revenueTitle: "Revenue",
+                        revenueAmount:
+                            dashboardController
+                                .overallData["revenue"]?[selectedPeriod] ??
+                            0,
+                        profitTitle: "Net Profit",
+                        profitAmount:
+                            dashboardController
+                                .overallData["net_profit"]?[selectedPeriod] ??
+                            0,
+                        gradient: [AppColors.primary, AppColors.secondary],
+                        animation: _animationController,
+                      ),
 
-                    SizedBox(height: height * 0.03),
+                      SizedBox(height: height * 0.015),
+
+                      // ===== Secondary Metrics (Gross Profit, Expense, Purchase) =====
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DashboardSmallStatCard(
+                              width: width,
+                              height: height,
+                              title: "Gross Profit",
+                              amountVal:
+                                  dashboardController
+                                      .overallData["gross_profit"]?[selectedPeriod] ??
+                                  0,
+                              icon: Icons.monetization_on_rounded,
+                              color: AppColors.success,
+                              animation: _animationController,
+                            ),
+                          ),
+                          SizedBox(width: width * 0.03),
+                          Expanded(
+                            child: DashboardSmallStatCard(
+                              width: width,
+                              height: height,
+                              title: "Expenses",
+                              amountVal:
+                                  dashboardController
+                                      .overallData["expense"]?[selectedPeriod] ??
+                                  0,
+                              icon: Icons.money_off_csred_rounded,
+                              color: AppColors.error,
+                              animation: _animationController,
+                            ),
+                          ),
+                          SizedBox(width: width * 0.03),
+                          Expanded(
+                            child: DashboardSmallStatCard(
+                              width: width,
+                              height: height,
+                              title: "Purchases",
+                              amountVal:
+                                  dashboardController
+                                      .overallData["purchase"]?[selectedPeriod] ??
+                                  0,
+                              icon: Icons.shopping_cart_rounded,
+                              color: AppColors.warm,
+                              animation: _animationController,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: height * 0.015),
+
+                      // ===== Departments =====
+                      GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount:
+                            dashboardController.filteredDepartments.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: (width > 600) ? 3 : 2,
+                          crossAxisSpacing: width * 0.03,
+                          mainAxisSpacing: height * 0.02,
+                          childAspectRatio: 1.8,
+                        ),
+                        itemBuilder: (context, idx) {
+                          final dept =
+                              dashboardController.filteredDepartments[idx];
+                          final deptKey =
+                              dept['dept_id'] as String? ?? 'Department';
+                          final deptColor = _getDepartmentColor(deptKey, idx);
+                          final deptIcon = _getDepartmentIcon(deptKey, idx);
+
+                          return DashboardDepartmentCard(
+                            width: width,
+                            height: height,
+                            dept: dept,
+                            selectedPeriod: selectedPeriod,
+                            deptKey: deptKey,
+                            deptColor: deptColor,
+                            deptIcon: deptIcon,
+                            idx: idx,
+                          );
+                        },
+                      ),
+
+                      SizedBox(height: height * 0.03),
+                    ],
                   ],
                 ),
               ),
             ),
             Obx(() {
-              return dashboardController.isLoading.value
-                  ? Center(
-                    child: Material(
-                      color: Colors.white.withAlpha(
-                        220,
-                      ), // only the container becomes white
-                      elevation: 10,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        height: 100,
-                        width: 200,
-                        alignment: Alignment.center,
-                        child: Lottie.asset(
-                          "assets/animations/ECG.json",
-                          height: 200,
-                          width: 200,
-                        ),
+              if (!dashboardController.isLoading.value)
+                return const SizedBox.shrink();
+
+              return Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 30,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 30,
+                            spreadRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Lottie.asset(
+                            "assets/animations/ECG.json",
+                            height: 120,
+                            width: 120,
+                          ),
+                          Text(
+                            "Loading Data...",
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: width * 0.045,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                  : SizedBox();
+                  ),
+                ),
+              );
             }),
           ],
         ),
       );
     });
-  }
-
-  /// Formats department key to a display name (e.g., "patient_visit" -> "Patient Visit")
-  String _formatDeptName(String key) {
-    return key
-        .split('_')
-        .map((word) => word[0].toUpperCase() + word.substring(1))
-        .join(' ');
-  }
-
-  /// Reusable department stat row widget
-  Widget _buildDeptStatRow(
-    double width,
-    double height,
-    String label,
-    String value,
-    IconData icon,
-    Color iconColor,
-    Color valueColor,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(width * 0.02),
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(width * 0.02),
-          ),
-          child: Icon(icon, color: iconColor, size: width * 0.04),
-        ),
-        SizedBox(width: width * 0.025),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: width * 0.03,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: valueColor,
-                  fontSize: width * 0.035,
-                  letterSpacing: -0.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ===== Summary Card (reusable) =====
-  Widget _buildSummaryCard(
-    double width,
-    double height,
-    String revenueTitle,
-    dynamic revenueAmount,
-    String profitTitle,
-    dynamic profitAmount,
-    List<Color> gradient,
-  ) {
-    final revenue = (revenueAmount is num) ? revenueAmount.toDouble() : 0.0;
-    final profit = (profitAmount is num) ? profitAmount.toDouble() : 0.0;
-
-    return FadeTransition(
-      opacity: _animationController,
-      child: Container(
-        margin: EdgeInsets.symmetric(vertical: height * 0.01),
-        padding: EdgeInsets.all(width * 0.05),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.black12),
-          gradient: LinearGradient(
-            colors: gradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(width * 0.045),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.4),
-              blurRadius: 25,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Revenue section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  revenueTitle,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.95),
-                    fontSize: width * 0.042,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.all(width * 0.025),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(width * 0.025),
-                  ),
-                  child: Icon(
-                    Icons.account_balance_wallet_rounded,
-                    color: Colors.white,
-                    size: width * 0.06,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: height * 0.01),
-            Text(
-              'Rs ${_formatAmount(revenue)}',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: width * 0.09,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.5,
-                height: 1,
-              ),
-            ),
-            SizedBox(height: height * 0.018),
-            // Profit section
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: width * 0.035,
-                vertical: height * 0.01,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(width * 0.025),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.trending_up_rounded,
-                    color: Colors.white,
-                    size: width * 0.045,
-                  ),
-                  SizedBox(width: width * 0.02),
-                  Text(
-                    '$profitTitle: ',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: width * 0.032,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    'Rs ${_formatAmount(profit)}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: width * 0.035,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Formats amount for display (e.g., 160000 -> "160.0k")
-  String _formatAmount(double amount) {
-    if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}k';
-    }
-    return amount.toStringAsFixed(0);
   }
 }

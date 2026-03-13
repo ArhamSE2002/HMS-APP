@@ -4,9 +4,10 @@ import 'package:khaiyal_hospital_finance/services/apiService.dart';
 
 class DashboardController extends GetxController {
   // Observable data
-  var financialSummary = <String, dynamic>{}.obs;
+  var overallData = <String, dynamic>{}.obs;
   var isLoading = false.obs;
   final filteredDepartments = <dynamic>[].obs;
+  var selectedPeriod = 'today'.obs;
 
   // Date management
   final Rx<DateTime> selectedDate = DateTime.now().obs;
@@ -18,7 +19,6 @@ class DashboardController extends GetxController {
   void onInit() async {
     super.onInit();
     await getFinancialSummary();
-    _filterDepartments();
   }
 
   /// Formatted date string for API query
@@ -41,9 +41,25 @@ class DashboardController extends GetxController {
         "financial/get-summary?date=$formattedDate",
       );
 
-      // The API now returns data directly (not wrapped in "data" key)
+      // The API now returns nested data
       if (response != null && response is Map) {
-        financialSummary.value = Map<String, dynamic>.from(response);
+        if (response['success'] == false) {
+          overallData.clear();
+          filteredDepartments.clear();
+        } else {
+          if (response.containsKey('overall')) {
+            overallData.value = Map<String, dynamic>.from(response['overall']);
+          } else {
+            overallData.clear();
+          }
+          if (response.containsKey('department_breakdown')) {
+            filteredDepartments.value = List<dynamic>.from(
+              response['department_breakdown'],
+            );
+          } else {
+            filteredDepartments.clear();
+          }
+        }
         isLoading.value = false;
         return true;
       } else {
@@ -58,33 +74,8 @@ class DashboardController extends GetxController {
     }
   }
 
-  /// Filters departments that have daily_profit data
-  void _filterDepartments() {
-    filteredDepartments.clear();
-
-    // Departments are now at the top level of the response
-    // Skip known non-department keys
-    final nonDepartmentKeys = {
-      'hospital_id',
-      'date',
-      'daily_revenue',
-      'daily_net_profit',
-      'monthly_revenue',
-      'monthly_net_profit',
-    };
-
-    financialSummary.forEach((key, value) {
-      if (!nonDepartmentKeys.contains(key) &&
-          value is Map &&
-          value.containsKey("daily_profit")) {
-        filteredDepartments.add({key: value});
-      }
-    });
-  }
-
   /// Refresh data manually (useful for pull-to-refresh)
   Future<void> refreshData() async {
     await getFinancialSummary();
-    _filterDepartments();
   }
 }
